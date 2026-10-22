@@ -2,11 +2,11 @@ name: Watch MouseMarket
 
 on:
   schedule:
-    # Every 20 minutes, 15:00-09:40 UTC. This covers 8:00 AM-1:00 AM Pacific in both
-    # daylight and standard time; the first step skips runs outside that window.
-    - cron: "*/20 0-9,15-23 * * *"
+    # Every 15 minutes, around the clock.
+    - cron: "*/15 * * * *"
     # Weekly keepalive: GitHub disables schedules in public repos after 60 days without activity.
-    - cron: "30 18 * * 1"
+    # Kept off the 15-minute marks so it is never confused with a check.
+    - cron: "7 18 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -20,42 +20,27 @@ concurrency:
 
 jobs:
   check:
-    if: github.event.schedule != '30 18 * * 1'
+    if: github.event.schedule != '7 18 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check Pacific active hours
-        id: window
-        run: |
-          now=$(TZ=America/Los_Angeles date +%H%M)
-          # Allow 10 minutes past 1:00 AM, since GitHub often starts scheduled runs late.
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || (( 10#$now >= 800 || 10#$now <= 110 )); then
-            echo "active=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Outside 8:00 AM-1:00 AM Pacific (now $now); skipping."
-          fi
+      - uses: actions/checkout@v5
 
       - uses: actions/checkout@v5
-        if: steps.window.outputs.active == 'true'
-
-      - uses: actions/checkout@v5
-        if: steps.window.outputs.active == 'true'
         with:
           ref: state
           path: state
 
       - name: Check r/MouseMarket
-        if: steps.window.outputs.active == 'true'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         # Exit 1 is a failed check: the script counts it and sends one ntfy alert after six in a
-        # row, so a red run every 20 minutes would only add GitHub email noise. Any other exit,
+        # row, so a red run every 15 minutes would only add GitHub email noise. Any other exit,
         # such as a missing or malformed NTFY_TOPIC secret, can never reach ntfy, so fail the run
         # and let GitHub email you.
         run: python3 mouse_finder.py --ntfy-topic "$NTFY_TOPIC" --state state/state.json || [ $? -eq 1 ]
 
       - name: Save state
-        if: steps.window.outputs.active == 'true'
         working-directory: state
         run: |
           if ! git diff --quiet -- state.json; then
@@ -66,7 +51,7 @@ jobs:
           fi
 
   keepalive:
-    if: github.event.schedule == '30 18 * * 1'
+    if: github.event.schedule == '7 18 * * 1'
     runs-on: ubuntu-latest
     steps:
       - name: Keep the schedule enabled

@@ -56,20 +56,19 @@ With `--ntfy-topic`, each new or updated match is pushed to your phone through [
 
 **Anyone who knows the topic name can read or send its notifications**, so the topic is a long random name. Pushes contain only the public listing title, the matching rows, and the link.
 
-If **six checks in a row fail** (about two hours in the cloud), you get one "Mouse Finder checks are failing" push. Otherwise, a blocked feed would look the same as a quiet market. You get a "working again" push after the next successful check.
+If **six checks in a row fail** (about 90 minutes), you get one "Mouse Finder checks are failing" push. Otherwise, a blocked feed would look the same as a quiet market. You get a "working again" push after the next successful check.
 
 ## Cloud checks with GitHub Actions
 
-[`.github/workflows/watch.yml`](.github/workflows/watch.yml) runs a check **every 20 minutes from 8:00 AM to 1:00 AM Pacific** on GitHub's servers, so it works while your computer is off. Scheduled workflows are free in public repositories.
+[`.github/workflows/watch.yml`](.github/workflows/watch.yml) runs a check **every 15 minutes, around the clock**, on GitHub's servers, so it works while your computer is off. Scheduled workflows are free in public repositories, and 96 checks a day is far below Reddit's limit of about one request per minute. To avoid overnight alerts, use iPhone Sleep Focus or Do Not Disturb. The alert will be waiting when you wake up.
 
-- **Time window:** GitHub schedules use UTC, so the workflow is scheduled for the hours that cover both daylight and standard time. Its first step skips any run outside 8:00 AM–1:10 AM Pacific.
 - **Timing:** GitHub often starts scheduled runs a few minutes late, and can skip runs when it is busy. The 48-hour lookback still catches listings from a skipped run on the next one.
 - **Topic:** the ntfy topic is the `NTFY_TOPIC` repository secret (**Settings → Secrets and variables → Actions**). It never appears in the code or logs.
 - **State:** it lives on a separate `state` branch, as `state.json`. The workflow commits it only when something changes: a new match, or a change in the failure count. The file holds only anonymous digests.
-- **Failed checks:** a blocked or failed check doesn't turn the run red. The failure push above covers outages, which avoids a GitHub failure email every 20 minutes. A setup problem that ntfy can't report, such as a missing or malformed `NTFY_TOPIC` secret, does turn the run red, and GitHub emails you.
+- **Failed checks:** a blocked or failed check doesn't turn the run red. The failure push above covers outages, which avoids a GitHub failure email every 15 minutes. A setup problem that ntfy can't report, such as a missing or malformed `NTFY_TOPIC` secret, does turn the run red, and GitHub emails you.
 - **Setting the secret from PowerShell:** use `gh secret set NTFY_TOPIC --body YOUR-TOPIC`. Piping the topic into `gh secret set` adds an invisible line break, and the script rejects the topic.
 - **Keepalive:** GitHub disables schedules in public repositories after 60 days without activity. A weekly job re-enables the workflow through GitHub's API. If GitHub ever disables it anyway, enable it again under **Actions → Watch MouseMarket**.
-- **Manual run:** use **Actions → Watch MouseMarket → Run workflow**. Manual runs ignore the time window.
+- **Manual run:** use **Actions → Watch MouseMarket → Run workflow**.
 
 Use either the cloud checks or the Windows task, not both. Each keeps its own record of sent matches, so running both pushes every match twice.
 
