@@ -46,12 +46,13 @@ jobs:
 
       - name: Check r/MouseMarket
         if: steps.window.outputs.active == 'true'
-        # A failed check still saves its failure count below. After six in a row, the script
-        # sends one ntfy alert, so a red run every 20 minutes would only add GitHub email noise.
-        continue-on-error: true
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python3 mouse_finder.py --ntfy-topic "$NTFY_TOPIC" --state state/state.json
+        # Exit 1 is a failed check: the script counts it and sends one ntfy alert after six in a
+        # row, so a red run every 20 minutes would only add GitHub email noise. Any other exit,
+        # such as a missing or malformed NTFY_TOPIC secret, can never reach ntfy, so fail the run
+        # and let GitHub email you.
+        run: python3 mouse_finder.py --ntfy-topic "$NTFY_TOPIC" --state state/state.json || [ $? -eq 1 ]
 
       - name: Save state
         if: steps.window.outputs.active == 'true'

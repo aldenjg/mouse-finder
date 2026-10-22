@@ -66,7 +66,8 @@ If **six checks in a row fail** (about two hours in the cloud), you get one "Mou
 - **Timing:** GitHub often starts scheduled runs a few minutes late, and can skip runs when it is busy. The 48-hour lookback still catches listings from a skipped run on the next one.
 - **Topic:** the ntfy topic is the `NTFY_TOPIC` repository secret (**Settings → Secrets and variables → Actions**). It never appears in the code or logs.
 - **State:** it lives on a separate `state` branch, as `state.json`. The workflow commits it only when something changes: a new match, or a change in the failure count. The file holds only anonymous digests.
-- **Failed checks:** they don't turn the run red. The step shows a warning, and the failure push above covers outages. This avoids a GitHub failure email every 20 minutes.
+- **Failed checks:** a blocked or failed check doesn't turn the run red. The failure push above covers outages, which avoids a GitHub failure email every 20 minutes. A setup problem that ntfy can't report, such as a missing or malformed `NTFY_TOPIC` secret, does turn the run red, and GitHub emails you.
+- **Setting the secret from PowerShell:** use `gh secret set NTFY_TOPIC --body YOUR-TOPIC`. Piping the topic into `gh secret set` adds an invisible line break, and the script rejects the topic.
 - **Keepalive:** GitHub disables schedules in public repositories after 60 days without activity. A weekly job re-enables the workflow through GitHub's API. If GitHub ever disables it anyway, enable it again under **Actions → Watch MouseMarket**.
 - **Manual run:** use **Actions → Watch MouseMarket → Run workflow**. Manual runs ignore the time window.
 
