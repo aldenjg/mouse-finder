@@ -1,0 +1,6 @@
+__pycache__/
+.mouse-finder-state.json
+.mouse-finder-state.json.tmp
+matches.html
+watcher.log
+test-output/
