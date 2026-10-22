@@ -1,3 +1,5 @@
 {
-  "seen": {}
+  "seen": {},
+  "failures": 0,
+  "failure_alerted": false
 }
