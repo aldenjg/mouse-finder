@@ -2,11 +2,13 @@ name: Watch MouseMarket
 
 on:
   schedule:
-    # Every 15 minutes, around the clock.
-    - cron: "*/15 * * * *"
+    # Backup only: GitHub drops most frequent scheduled runs. cron-job.org starts this workflow
+    # every 15 minutes at :00/:15/:30/:45 through workflow_dispatch, so this schedule sits
+    # between those times, to keep two checks from hitting Reddit's one-per-minute limit together.
+    - cron: "7,22,37,52 * * * *"
     # Weekly keepalive: GitHub disables schedules in public repos after 60 days without activity.
-    # Kept off the 15-minute marks so it is never confused with a check.
-    - cron: "7 18 * * 1"
+    # Kept off the check times so it is never confused with a check.
+    - cron: "3 18 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -20,7 +22,7 @@ concurrency:
 
 jobs:
   check:
-    if: github.event.schedule != '7 18 * * 1'
+    if: github.event.schedule != '3 18 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -51,7 +53,7 @@ jobs:
           fi
 
   keepalive:
-    if: github.event.schedule == '7 18 * * 1'
+    if: github.event.schedule == '3 18 * * 1'
     runs-on: ubuntu-latest
     steps:
       - name: Keep the schedule enabled
