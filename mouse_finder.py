@@ -27,6 +27,9 @@ FEED = "https://www.reddit.com/r/MouseMarket/new/.rss"
 USER_AGENT = "python:mouse-finder:v1.1 (personal MouseMarket RSS reader)"
 BASE = re.compile(r"\b(?:ulx|ultra[\s-]*light[\s-]*x)\b", re.I)
 FAMILY = re.compile(r"\b(prophecy|sakura)\b", re.I)
+# "Comp" is also everyday shorthand, so it names a mouse only beside ULX or Finalmouse.
+COMPETITION = re.compile(r"\b(?:competition|comps?)\b", re.I)
+FINALMOUSE = re.compile(r"\bfinal\s*mouse\b", re.I)
 # Verified against https://finalmouse.com/collections/all?page=2.
 PROPHECY_COLORS = ("Clix", "ScreaM", "Tarik", "Tfue")
 COLOR_PATTERN = "|".join(re.escape(name) for name in PROPHECY_COLORS)
@@ -37,7 +40,7 @@ DISTINCT_PROPHECY_COLOR = re.compile(r"\b(?:clix|tfue)\b", re.I)
 MEDIUM = re.compile(r"\b(?:medium|med|lion)\b|(?<![\w'’])m(?![\w'’])", re.I)
 OTHER_SIZE = re.compile(r"\b(?:small|large|classic|cheetah|tiger)\b|(?<![\w'’])[sl](?![\w'’])", re.I)
 OLD_EDITION = re.compile(
-    r"\b(?:phantom|guardian|aceu|competition|comp|frostlord|starlight|slx)\b|\bpro\b|\bscream\s+one\b", re.I
+    r"\b(?:phantom|guardian|aceu|frostlord|starlight|slx)\b|\bpro\b|\bscream\s+one\b", re.I
 )
 SOLD = re.compile(r"\b(?:sold|pending|traded|unavailable)\b", re.I)
 WANTED = re.compile(r"\b(?:looking\s+(?:to\s+(?:buy|purchase)|for)|wtb|want(?:ed|ing)?\s+to\s+buy)\b", re.I)
@@ -144,11 +147,14 @@ def family_of(text: str) -> str:
     families = {found.lower() for found in FAMILY.findall(text)}
     if PROPHECY_COLOR.search(text) and not OLD_EDITION.search(text):
         families.add("prophecy")
+    if COMPETITION.search(text):
+        families.add("competition")
     return next(iter(families)) if len(families) == 1 else "generic"
 
 
 def is_model(text: str) -> bool:
-    return bool(BASE.search(text) or FAMILY.search(text) or PROPHECY_COLOR.search(text))
+    return bool(BASE.search(text) or FAMILY.search(text) or PROPHECY_COLOR.search(text)
+                or (COMPETITION.search(text) and FINALMOUSE.search(text)))
 
 
 def sold_item(text: str) -> bool:
@@ -195,7 +201,8 @@ def classify(post: Post, *, strict: bool = False) -> Match | None:
         if sold_item(item):
             continue
         explicit = bool(FAMILY.search(item))
-        if not explicit and OLD_EDITION.search(item):
+        competition = bool(COMPETITION.search(item))
+        if not explicit and not competition and OLD_EDITION.search(item):
             continue
         color = PROPHECY_COLOR.search(item)
         same_family = [part for part in title_items if family_of(part) == family_of(item)]
@@ -206,7 +213,7 @@ def classify(post: Post, *, strict: bool = False) -> Match | None:
             if same_color and re.search(r"\bprophecy\b", same_family[0], re.I):
                 explicit = True
         inferred = bool(DISTINCT_PROPHECY_COLOR.search(item))
-        target_edition = explicit or inferred
+        target_edition = explicit or inferred or competition
         medium = bool(MEDIUM.search(item))
         other = bool(OTHER_SIZE.search(item))
         # A uniquely identified title item can supply a size omitted in its row.
@@ -217,6 +224,7 @@ def classify(post: Post, *, strict: bool = False) -> Match | None:
             continue
         if target_edition and medium and not other:
             reason = ("Prophecy/Sakura with an explicit medium size" if explicit else
+                      "Competition with an explicit medium size" if competition else
                       f"Prophecy inferred from {color.group()}; explicit medium size")
             accepted.append((2, reason, item))
         elif target_edition:
@@ -224,7 +232,7 @@ def classify(post: Post, *, strict: bool = False) -> Match | None:
         elif color:
             accepted.append((1, f"{color.group()} may be Prophecy or an older edition; confirm edition and size", item))
         else:
-            accepted.append((1, "ULX mentioned; confirm Prophecy/Sakura edition and medium size", item))
+            accepted.append((1, "ULX mentioned; confirm Prophecy/Sakura/Competition edition and medium size", item))
     if not accepted:
         return None
     rank = max(item[0] for item in accepted)
@@ -320,7 +328,7 @@ def write_report(path: Path, matches: list[Match], new_keys: set[str], warnings:
 body{{font:16px/1.6 system-ui,sans-serif;background:#111722;color:#e6ecf5;max-width:960px;margin:40px auto;padding:0 24px}}
 h1{{line-height:1.2}}h2{{font-size:18px}}a{{color:#9ccaff}}article{{background:#1c2635;border:1px solid #35465f;border-radius:12px;padding:22px;margin:18px 0}}
 .badge{{color:#b6e9ce;font-weight:600}}small,.muted{{color:#b1bfd2}}.warning{{color:#ffda98}}
-</style><h1>Mouse Finder</h1><p>Medium ULX · Prophecy or Sakura · r/MouseMarket</p>
+</style><h1>Mouse Finder</h1><p>Medium ULX · Prophecy, Sakura, or Competition · r/MouseMarket</p>
 <p class="muted">Checked {checked.strftime('%Y-%m-%d %H:%M UTC')} · {scanned} posts scanned · Last {hours:g} hours</p>
 {notices}{content}<p class="muted">This is a snapshot of the RSS feed. Sale flair is unavailable.
 Check the original listing for photos, size, edition, price, and current availability.
@@ -399,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hours", type=float, default=48, help="Lookback window (default: 48 hours)")
     parser.add_argument("--max-pages", type=int, default=5, help="At most this many 100-post feeds (default: 5)")
-    parser.add_argument("--strict", action="store_true", help="Require Prophecy/Sakura (or Clix/Tfue) AND medium size")
+    parser.add_argument("--strict", action="store_true", help="Require Prophecy/Sakura/Competition (or Clix/Tfue) AND medium size")
     parser.add_argument("--open", action="store_true", help="Open the report in your browser")
     parser.add_argument("--open-on-new", action="store_true", help="Open the report only for new or updated matches")
     parser.add_argument("--ntfy-topic", help="Push new matches, and repeated failures, to this ntfy.sh topic")

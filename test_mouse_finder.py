@@ -97,9 +97,37 @@ class FilteringTests(unittest.TestCase):
         self.assertIsNone(mf.classify(post("ULX Medium"), strict=True))
 
     def test_explicit_old_or_other_editions_are_excluded(self):
-        for edition in ["Pro. Tarik", "Pro Scream", "Phantom", "Aceu", "Competition", "Frostlord"]:
+        for edition in ["Pro. Tarik", "Pro Scream", "Phantom", "Aceu", "Frostlord"]:
             with self.subTest(edition=edition):
                 self.assertIsNone(mf.classify(post(f"ULX {edition} medium")))
+
+    def test_real_competition_listing_is_strong(self):
+        # r/MouseMarket, October 23, 2026.
+        listing = mf.Post("t3_1xdr5q0", "[US-CA] [H] Finalmouse ULX Competition Medium [W] PayPal",
+                          "Timestamp\nAsking $150 shipped\nNo QC issues",
+                          "https://www.reddit.com/comments/1xdr5q0", datetime.now(timezone.utc))
+        result = mf.classify(listing, strict=True)
+        self.assertEqual(result.reason, "Competition with an explicit medium size")
+
+    def test_competition_shorthands_are_recognized(self):
+        for offer in ["ULX Comp M", "ULX Comps Medium", "2x ULX Comps (M)", "Finalmouse Comp Lion",
+                      "UltralightX Competition Med"]:
+            with self.subTest(offer=offer):
+                self.assertEqual(mf.classify(post(offer), strict=True).confidence, "Strong match")
+
+    def test_comp_without_ulx_or_finalmouse_is_not_a_mouse(self):
+        for offer in ["Comp M", "Lamzu Atlantis Competition Medium", "GPX, comp grips M"]:
+            with self.subTest(offer=offer):
+                self.assertIsNone(mf.classify(post(offer)))
+
+    def test_competition_keeps_size_and_sold_filters(self):
+        self.assertIsNone(mf.classify(post("ULX Competition Small")))
+        self.assertIsNone(mf.classify(post("ULX Comp M", "~~ULX Comp M~~ | $150 | SOLD")))
+        self.assertEqual(mf.classify(post("ULX Competition")).reason, "Target edition; confirm size with seller")
+
+    def test_competition_title_item_survives_other_body_rows(self):
+        result = mf.classify(post("ULX Competition M, ULX Phantom M", "ULX Phantom M | $100"), strict=True)
+        self.assertEqual(result.evidence, ("ULX Competition M",))
 
     def test_user_example_does_not_qualify(self):
         title = ("Finalmouse SLX, ULX Phantom, SL Phantom, SL Ares, SL Poseidon, "

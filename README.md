@@ -1,6 +1,6 @@
 # Mouse Finder
 
-A personal, read-only watcher for **medium Finalmouse ULX Prophecy or Sakura** listings on r/MouseMarket. It reads Reddit's public RSS feed; it needs **Python 3.10+**, with no packages, API key, Reddit password, or login.
+A personal, read-only watcher for **medium Finalmouse ULX Prophecy, Sakura, or Competition** listings on r/MouseMarket. It reads Reddit's public RSS feed; it needs **Python 3.10+**, with no packages, API key, Reddit password, or login.
 
 The feed returned HTTP 200 and 100 recent posts from this computer on October 22, 2026. This verifies current access, not future availability. Reddit can change or restrict RSS. Logged-out RSS currently allows about **one request per minute** (`x-ratelimit-remaining` drops to 0 after a single request). One page of 100 posts covers about six days of MouseMarket, so a normal check makes one request. If more pages are needed, the script waits for the reset time Reddit reports, up to two minutes. If an older page is still refused, it keeps the newer posts and warns that coverage may be incomplete. On HTTP 401/403/429 for the first page, the script reports a failed check, exits with an error, and leaves the previous report intact. It does not switch hosts or attempt to bypass restrictions.
 
@@ -16,7 +16,7 @@ python .\mouse_finder.py --open
 This fetches recent posts and opens `matches.html`, a local report with listing links. It looks back 48 hours and requests up to five pages of 100 posts, stopping once it reaches the time boundary. Repeated checks recognize already seen matches. Updated matching descriptions can appear as new/updated results. For automatic checks with phone alerts, see [Phone alerts](#phone-alerts), then [Cloud checks with GitHub Actions](#cloud-checks-with-github-actions) (runs while your computer is off) or [Scheduled checks on Windows](#scheduled-checks-on-windows).
 
 ```powershell
-# Only show Prophecy/Sakura (including Clix/Tfue aliases) + medium matches.
+# Only show Prophecy/Sakura/Competition (including Clix/Tfue aliases) + medium matches.
 python .\mouse_finder.py --strict --open
 
 # Suitable for a recurring task: open the report only when something changes.
@@ -32,9 +32,10 @@ python .\mouse_finder.py --hours 24 --max-pages 2
 - When the title is generic, such as `[H] Finalmouse collection, Lamzu [W] PayPal`, read the inventory in the body. Skip this when `[H]` starts with a payment (`[H] PayPal`, `[H] $`) or `[W]` names the mouse, since then the body describes what the poster wants.
 - Recognize `ULX`, `UltralightX`, `Ultralight X`, and `Ultralight-X`, case-insensitively.
 - Recognize all four **Prophecy colorways: Clix, ScreaM, Tarik, and Tfue**, case-insensitively, alongside the **Prophecy** and **Sakura** edition names. `Clix` and `Tfue` identify Prophecy even without `ULX` or `Prophecy`, such as `[H] Clix M [W] PayPal`. `Tarik` and `ScreaM` without an edition are **Possible matches** because these names can refer to older mice. Explicit `Pro`, `Starlight`, and `Scream One` listings remain excluded.
+- Recognize the **Competition** edition as `Competition`, `Comp`, or `Comps`. Because "comp" is also everyday shorthand, it counts only alongside `ULX` or `Finalmouse`, such as `[H] ULX Comp M [W] PayPal` or `[H] Finalmouse Competition Medium [W] PayPal`. A bare `[H] Comp M [W] PayPal` does not qualify.
 - Recognize `Medium`, `Med`, `M`, and `Lion`. `Classic`, `Tiger`, `Large`, `Small`, and `Cheetah` are different sizes. Size matching is per inventory fragment or table row, rather than anywhere in the post. Apostrophes are not sizes: the `s` in "it's" or "Tfue's" is not Small, and the `m` in "I'm" is not Medium.
-- A **Strong match** identifies Prophecy/Sakura by edition name or a Clix/Tfue alias, and explicitly states medium size. A **Possible match** has an ambiguous edition, omits the size, or lists multiple sizes. Possible matches are included by default so vague listings are not silently discarded; `--strict` hides them.
-- Exclude explicit older/other editions such as Phantom, Aceu, Pro, Competition, and Frostlord when the row does not explicitly identify Prophecy or Sakura. These edition choices follow your requested scope.
+- A **Strong match** identifies Prophecy, Sakura, or Competition by edition name, or Prophecy by a Clix/Tfue alias, and explicitly states medium size. A **Possible match** has an ambiguous edition, omits the size, or lists multiple sizes. Possible matches are included by default so vague listings are not silently discarded; `--strict` hides them.
+- Exclude explicit older/other editions such as Phantom, Aceu, Pro, and Frostlord when the row does not explicitly identify Prophecy, Sakura, or Competition. These edition choices follow your requested scope.
 - Use body rows to detect sold/pending/struck-out items. A struck-out quantity, such as `~~2~~ 1`, does not itself mean the item is sold.
 
 **Your pasted example does not qualify**: its medium Phantom has a different chassis, and its Pro. Scream/Tarik listings are earlier editions and Classic size. It contains no explicit medium Prophecy or Sakura.
